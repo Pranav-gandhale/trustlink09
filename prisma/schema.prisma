@@ -1,0 +1,105 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  photo     String?
+  role      UserRole @default(CUSTOMER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  provider  Provider?
+  bookings  Booking[] @relation("CustomerBookings")
+}
+
+model Provider {
+  id              String    @id @default(cuid())
+  userId          String    @unique
+  user            User      @relation(fields: [userId], references: [id])
+  serviceType     String    // Plumber, Pest Control, Electrician
+  experience      Int       @default(0)
+  price           Float     @default(0)
+  isVerified      Boolean   @default(false)
+  governmentId    String?   // URL or ID number
+  businessLicense String?   // URL or license number
+  status          String    @default("PENDING_REVIEW") // PENDING_REVIEW, VERIFIED, REJECTED
+  latitude        Float?
+  longitude       Float?
+  
+  // Metrics for Trust Score
+  totalHires            Int     @default(0)
+  repeatHireCount       Int     @default(0)
+  disputeResolutionRate Float   @default(1.0)
+  averageRating         Float   @default(0.0)
+  responseTimeMinutes   Int     @default(60)
+  isBackgroundChecked   Boolean @default(false)
+  hasCertifications     Boolean @default(false)
+
+  bookings        Booking[] @relation("ProviderBookings")
+}
+
+model Booking {
+  id              String   @id @default(cuid())
+  customerId      String
+  customer        User     @relation("CustomerBookings", fields: [customerId], references: [id])
+  providerId      String
+  provider        Provider @relation("ProviderBookings", fields: [providerId], references: [id])
+  serviceType     String
+  fixedPrice      Float
+  bookingType     String   @default("DIRECT") // DIRECT, INSPECTION
+  issueDescription String?
+  address         String?
+  scheduledAt     DateTime?
+  inspectionFee   Float    @default(0)
+  holdAmount      Float    @default(0)
+  finalQuote      Float?
+  quoteNotes      String?
+  quoteSubmittedAt DateTime?
+  customerApprovalStatus String @default("PENDING") // PENDING, APPROVED, REJECTED
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  paymentReleasedAt DateTime?
+  status          BookingStatus @default(PENDING)
+  razorpayOrderId String?
+  completionPhoto String?
+  review          Review?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Review {
+  id        String   @id @default(cuid())
+  bookingId String   @unique
+  booking   Booking  @relation(fields: [bookingId], references: [id])
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
+}
+
+enum UserRole {
+  CUSTOMER
+  PROVIDER
+  ADMIN
+}
+
+enum BookingStatus {
+  PENDING
+  INSPECTION_REQUESTED
+  ESCROW_HELD
+  QUOTE_SUBMITTED
+  QUOTE_APPROVED
+  QUOTE_REJECTED
+  WORK_COMPLETED
+  RELEASED
+  DISPUTED
+  COMPLETED
+}
